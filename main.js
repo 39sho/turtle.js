@@ -1,5 +1,11 @@
 import {Turtle, AnimateDrawer, InanimateDrawer} from "./turtle.js";
 
+/*
+window.Turtle = Turtle;
+window.AnimateDrawer = AnimateDrawer;
+window.InanimateDrawer = InanimateDrawer;
+*/
+
 const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
 

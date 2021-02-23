@@ -2,10 +2,27 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
   <title>My test page</title>
-  <script type="module" src="main.js"></script>
+  <script src="main.js" type="module"></script>
+  <link href="main.css" rel="stylesheet">
 </head>
 <body>
-<canvas></canvas>
+  <header>
+    <details id="manual">
+      <summary>
+        使い方
+      </summary>
+      <p>
+        Chrome DevToolsでoverridesすることで、
+        タートルグラフィックスを自在に扱うことができます。
+        main.jsに描画内容に関するスクリプトがあります。
+      </p>
+    </details>
+    <a id="github" href="https://github.com/39sho/turtle.js">
+      39sho/turtle.js on Github
+    </a>
+  </header>
+  <canvas></canvas>
 </body>
 </html>
