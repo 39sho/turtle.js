@@ -134,7 +134,7 @@ class Turtle {
   constructor(drawer) {
     this.pos = { x: 0, y: 0 };
     this.angle = 0;
-    this.isdown = false;
+    this.isDown = false;
 
     this.drawer = drawer;
   }
