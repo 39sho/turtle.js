@@ -1,10 +1,4 @@
-import {Turtle, AnimateDrawer, InanimateDrawer} from "./turtle.js";
-
-/*
-window.Turtle = Turtle;
-window.AnimateDrawer = AnimateDrawer;
-window.InanimateDrawer = InanimateDrawer;
-*/
+import { Turtle } from "./turtle.js";
 
 const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
@@ -12,7 +6,7 @@ const ctx = canvas.getContext("2d");
 canvas.width = 480;
 canvas.height = 360;
 
-const t = new Turtle(new AnimateDrawer(ctx));
+const t = new Turtle(ctx, 300);
 
 const sierpinskiGasket = (size, num) => {
   for (const _ of Array(3)) {

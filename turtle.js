@@ -14,7 +14,7 @@ const loop = (func) => {
       func(delta);
     } catch (error) {
       cancelAnimationFrame(id);
-      throw new Error(`In rAF, ${error}`);
+      console.error(`In rAF, ${error}`);
     }
 
     then = now;
@@ -24,166 +24,247 @@ const loop = (func) => {
   return () => cancelAnimationFrame(id);
 };
 
-const animateLiner = (drawFunc, velocity) => (start, end) =>
-  new Promise((resolve, reject) => {
-    const distance = {
-      x: end.x - start.x,
-      y: end.y - start.y
-    };
+class Loop {
+  constructor(func) {
+    this.time = 0;
+    this.action = "nothing";
 
-    const line_length = Math.sqrt(distance.x ** 2 + distance.y ** 2);
+    loop((delta) => {
+      func(this.time);
 
-    const angle = Math.atan2(distance.y, distance.x);
-
-    let now_length = 0;
-    const stop = loop((delta) => {
-      now_length = Math.min(line_length, now_length + velocity * delta);
-
-      const now = {
-        x: start.x + now_length * Math.cos(angle),
-        y: start.y + now_length * Math.sin(angle)
-      };
-
-      drawFunc(start, now);
-
-      if (now_length === line_length) {
-        stop();
-        resolve();
+      if (this.action === "add") {
+        this.time += delta;
       }
     });
-  });
+  }
+  start() {
+    this.action = "add";
+  }
+  stop() {
+    this.action = "nothing";
+  }
+  reset() {
+    this.time = 0;
+  }
+}
 
-const inanimateLiner = (ctx, vertices) => {
-  ctx.beginPath();
-  ctx.moveTo(vertices[0].start.x, vertices[0].start.y);
+const update = (vertices, velocity, time) => {
+  let length = time * velocity;
 
-  for (const v of vertices) {
-    ctx.lineTo(v.end.x, v.end.y);
+  const path = new Path2D();
+  let angle = 0;
+  let [x, y] = [0, 0];
+
+  loop: for (const [first, ...vertex] of vertices) {
+    let start = first;
+
+    ({ x, y } = start);
+    path.moveTo(x, y);
+
+    for (const end of vertex) {
+      const distance = {
+        x: end.x - start.x,
+        y: end.y - start.y
+      };
+
+      angle = Math.atan2(distance.y, distance.x); // radian
+
+      if (0 >= length - Math.sqrt(distance.x ** 2 + distance.y ** 2)) {
+        ({ x, y } = {
+          x: start.x + length * Math.cos(angle),
+          y: start.y + length * Math.sin(angle)
+        });
+        path.lineTo(x, y);
+
+        break loop;
+      } else {
+        ({ x, y } = end);
+        path.lineTo(x, y);
+
+        length -= Math.sqrt(distance.x ** 2 + distance.y ** 2);
+        start = end;
+      }
+    }
   }
 
-  ctx.stroke();
+  return [path, { x, y }, rad2deg(angle)];
 };
 
-class AnimateDrawer {
-  constructor(ctx) {
-    this.canvas = ctx.canvas;
-    this.ctx = ctx;
+const length = (vertices) => {
+  let len = 0;
 
-    this.vertices = [];
-    this.isDraw = false;
+  for (const [first, ...vertex] of vertices) {
+    let start = first;
 
-    this.start = {
-      x: 0,
-      y: 0
-    };
+    for (const end of vertex) {
+      len += Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
 
-    this.animated = [];
-
-    this.line = animateLiner((start, now) => {
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-      inanimateLiner(this.ctx, [...this.animated, { start, end: now }]);
-    }, 400);
-  }
-  async _draw() {
-    this.isDraw = true;
-
-    let vertex;
-    while (!(this.vertices.length === 0)) {
-      vertex = this.vertices.shift();
-
-      await this.line(vertex.start, vertex.end);
-
-      this.animated.push(vertex);
-    }
-
-    this.isDraw = false;
-  }
-  push(point) {
-    if (point.isDown) {
-      this.vertices.push({
-        start: this.start,
-        end: point.pos
-      });
-    }
-
-    this.start = point.pos;
-
-    if (!this.isDraw) {
-      this._draw();
+      start = end;
     }
   }
-}
 
-class InanimateDrawer {
-  constructor(ctx) {
-    this.ctx = ctx;
+  return len;
+};
 
-    this.then = { x: 0, y: 0 };
+const conv = ({ x, y }, angle) => (point) => {
+  const r = Math.sqrt(point.x ** 2 + point.y ** 2);
+  const theta = Math.atan2(point.y, point.x);
+
+  return {
+    x: r * Math.cos(theta + deg2rad(angle)) + x,
+    y: r * Math.sin(theta + deg2rad(angle)) + y
+  };
+};
+
+const pointer = ({ x, y }, angle) => {
+  const shape = [
+    { x: 15, y: 0 },
+    { x: 0, y: 5 },
+    { x: 0, y: -5 }
+  ].map(conv({ x, y }, angle));
+
+  const path = new Path2D();
+
+  const [first, ...vertex] = shape;
+
+  path.moveTo(first.x, first.y);
+
+  for (const point of vertex) {
+    path.lineTo(point.x, point.y);
   }
-  push(point) {
-    if (point.isDown) {
-      inanimateLiner(this.ctx, [{ start: this.then, end: point.pos }]);
-    }
 
-    this.then = point.pos;
-  }
-}
+  path.closePath();
+
+  return path;
+};
+
+// degree to radian
+const deg2rad = (degree) => degree * (Math.PI / 180);
+
+// radian to degree
+const rad2deg = (radian) => radian * (180 / Math.PI);
+
+const move = ({ x, y }, angle, distance) => ({
+  x: x + distance * Math.cos(deg2rad(angle)),
+  y: y + distance * Math.sin(deg2rad(angle))
+});
+
+// -360 < result < 360
+const turn = (angle, angle2add) => (angle + angle2add) % 360;
 
 class Turtle {
-  constructor(drawer) {
-    this.pos = { x: 0, y: 0 };
-    this.angle = 0;
-    this.isDown = false;
+  constructor(ctx, velocity = Infinity) {
+    this._x = 0;
+    this._y = 0;
+    this._angle = 0; // degree
+    this.pen_is_down = false;
 
-    this.drawer = drawer;
+    this.velocity = velocity;
+    this.vertices = [];
+
+    this.x = 0;
+    this.y = 0;
+    this.angle = 0;
+
+    this.l = new Loop((time) => {
+      if (length(this.vertices) <= this.velocity * time) {
+        this.l.stop();
+      } else {
+        this.l.start();
+      }
+
+      const [path, { x, y }, angle] = update(
+        this.vertices,
+        this.velocity,
+        time
+      );
+
+      [this.x, this.y] = [x, y];
+      this.angle = angle;
+
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.stroke(path);
+      ctx.fill(pointer({ x, y }, angle));
+    });
+  }
+  erase() {
+    [this._x, this._y] = [this.x, this.y];
+    this._angle = this.angle;
+
+    const dummy = move({ x: this.x, y: this.y }, this.angle, 1);
+
+    this.vertices = [];
+    this.vertices.push([{ x: this._x, y: this._y }, dummy]);
+
+    this.l.reset();
   }
   penDown() {
-    this.isDown = true;
+    this.pen_is_down = true;
   }
   penUp() {
-    this.isDown = false;
+    this.pen_is_down = false;
   }
   setPosition(x, y) {
-    this.pos = { x, y };
+    [this._x, this._y] = [x, y];
 
-    this.drawer.push({
-      isDown: false,
-      pos: this.pos
-    });
-  }
-  move(distance) {
-    this.pos = {
-      x: this.pos.x + distance * Math.cos(this.angle * (Math.PI / 180)),
-      y: this.pos.y + distance * Math.sin(this.angle * (Math.PI / 180))
-    };
-
-    this.drawer.push({
-      isDown: this.isDown,
-      pos: this.pos
-    });
+    this.vertices.push([{ x: this._x, y: this._y }]);
   }
   forward(distance) {
-    this.move(distance);
+    ({ x: this._x, y: this._y } = move(
+      { x: this._x, y: this._y },
+      this._angle,
+      distance
+    ));
+
+    if (!this.pen_is_down) {
+      this.vertices.push([{ x: this._x, y: this._y }]);
+    } else {
+      if (this.vertices.length === 0) {
+        this.vertices.push([]);
+      }
+      this.vertices[this.vertices.length - 1].push({ x: this._x, y: this._y });
+    }
   }
   backward(distance) {
-    this.move(-distance);
-  }
-  turn(degree) {
-    this.angle += degree;
-    if (this.angle > 360) {
-      this.angle -= 360;
-    }
-    if (this.angle < 0) {
-      this.angle += 360;
+    ({ x: this._x, y: this._y } = move(
+      { x: this._x, y: this._y },
+      this._angle,
+      -distance
+    ));
+
+    if (!this.pen_is_down) {
+      this.vertices.push([{ x: this._x, y: this._y }]);
+    } else {
+      if (this.vertices.length === 0) {
+        this.vertices.push([]);
+      }
+      this.vertices[this.vertices.length - 1].push({ x: this._x, y: this._y });
     }
   }
   right(degree) {
-    this.turn(degree);
+    this._angle = turn(this._angle, degree);
+
+    if (!this.pen_is_down) {
+      this.vertices.push([{ x: this._x, y: this._y }]);
+    } else {
+      if (this.vertices.length === 0) {
+        this.vertices.push([]);
+      }
+      this.vertices[this.vertices.length - 1].push({ x: this._x, y: this._y });
+    }
   }
   left(degree) {
-    this.turn(-degree);
+    this._angle = turn(this._angle, -degree);
+
+    if (!this.pen_is_down) {
+      this.vertices.push([{ x: this._x, y: this._y }]);
+    } else {
+      if (this.vertices.length === 0) {
+        this.vertices.push([]);
+      }
+      this.vertices[this.vertices.length - 1].push({ x: this._x, y: this._y });
+    }
   }
 }
 
-export {Turtle, AnimateDrawer, InanimateDrawer};
+export { Turtle };

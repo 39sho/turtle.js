@@ -1,29 +1,7 @@
 body {
-  margin: 0;
   width: 100vw;
   height: 100vh;
-}
-
-header {
-  position: fixed;
-  width: 100vw;
-
-  display: grid;
-  grid-template:
-  "manual github" 100%
-  / 50vw 50vw;
-}
-
-#manual {
-  text-align: center;
-
-  grid-area: manual;
-}
-
-#github {
-  text-align: center;
-
-  grid-area: github;
+  margin: 0;
 }
 
 canvas {
