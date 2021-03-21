@@ -134,7 +134,7 @@ class Turtle {
 
     loop.addEventListener("tick", ({ detail: { delta } }) => {
       const [path, x, y, angle, isdone] = this.update(this.cmds, speed, time);
-      ctx.clearRect(0, 0, $canvas.width, $canvas.height);
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
       ctx.stroke(path);
 
