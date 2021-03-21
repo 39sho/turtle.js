@@ -18,6 +18,6 @@ const sierpinskiGasket = (size, num) => {
   }
 };
 
-t.setPosition(40, 360);
-t.penDown();
+t.goto(40, 360);
+t.pen_isdown = true;
 sierpinskiGasket(400, 4);
